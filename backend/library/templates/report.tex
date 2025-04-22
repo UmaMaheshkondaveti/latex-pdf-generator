@@ -1,0 +1,27 @@
+
+\documentclass{report}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Dynamic LaTeX Generator}
+\fancyhead[R]{\today}
+\fancyfoot[C]{\thepage}
+
+\title{Professional Report}
+\author{Dynamic LaTeX Generator}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+{{CONTENT}}
+
+\end{document}
+  

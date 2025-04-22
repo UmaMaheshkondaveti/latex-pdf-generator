@@ -1,23 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../models/db');
+const templateController = require('../controllers/templateController');
 
-router.get('/', async (req, res, next) => {
-  try {
-    const templates = await db.getAllTemplates();
-    res.json(templates);
-  } catch (err) {
-    next(err);
-  }
-});
+// Get all templates
+router.get('/', templateController.getAllTemplates);
 
-router.get('/:id', async (req, res, next) => {
-  try {
-    const template = await db.getTemplateById(req.params.id);
-    res.json(template);
-  } catch (err) {
-    next(err);
-  }
-});
+// Get specific template by ID
+router.get('/:id', templateController.getTemplate);
 
 module.exports = router;

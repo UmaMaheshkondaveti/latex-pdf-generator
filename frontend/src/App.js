@@ -1,114 +1,72 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
-import TiptapEditor from './components/TiptapEditor';
-import PublishButton from './components/PublishButton';
-import TemplateListModal from './components/TemplateListModal';
+import React, { useState } from 'react';
+import axios from 'axios';
+import Editor from './components/Editor';
+import TemplateGallery from './components/TemplateGallery';
 import PDFViewer from './components/PDFViewer';
+import './App.css';
 
 function App() {
-  const [editorContent, setEditorContent] = useState(null);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [editorInitialized, setEditorInitialized] = useState(false);
+  const [editorContent, setEditorContent] = useState('');
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+  const [generatedPdfUrl, setGeneratedPdfUrl] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Check if there's a saved draft in localStorage
-  useEffect(() => {
-    const savedDraft = localStorage.getItem('editorDraft');
-    if (savedDraft) {
-      try {
-        setEditorContent(JSON.parse(savedDraft));
-        setEditorInitialized(true);
-      } catch (error) {
-        console.error('Error loading saved draft:', error);
-      }
-    }
-  }, []);
-
-  // Save draft to localStorage on content change
-  useEffect(() => {
-    if (editorContent && editorInitialized) {
-      localStorage.setItem('editorDraft', JSON.stringify(editorContent));
-    }
-  }, [editorContent, editorInitialized]);
-
-  const handleEditorUpdate = (content) => {
+  const handlePublish = (content) => {
     setEditorContent(content);
-    if (!editorInitialized) {
-      setEditorInitialized(true);
-    }
-  };
-
-  const handlePublishClick = () => {
-    setShowTemplateModal(true);
-  };
-
-  const handleModalClose = () => {
-    setShowTemplateModal(false);
+    setShowTemplateGallery(true);
   };
 
   const handleTemplateSelect = async (templateId) => {
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
     
     try {
-      console.log('Generating PDF with template:', templateId);
-      console.log('Editor content:', editorContent);
-      
-      const response = await fetch('http://localhost:5000/api/generate-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          template_id: templateId,
-          sections: [
-            {
-              title: "Resume Content",
-              content: editorContent
-            }
-          ]
-        }),
+      const response = await axios.post('/api/documents/generate', {
+        content: editorContent,
+        templateId: templateId
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+      if (response.data.success) {
+        setGeneratedPdfUrl(response.data.pdfUrl);
+        setShowTemplateGallery(false);
+      } else {
+        setError(`Failed to generate PDF: ${response.data.message}`);
+        console.error('Error details:', response.data);
+      }
+    } catch (err) {
+      let errorMessage = 'Failed to generate PDF. Please try again.';
+      
+      if (err.response && err.response.data) {
+        errorMessage = `Error: ${err.response.data.message || 'Unknown error'}`;
+        console.error('Detailed error:', err.response.data);
+      } else {
+        console.error('Error generating PDF:', err);
       }
       
-      const blob = await response.blob();
-      if (blob.size === 0) {
-        throw new Error('Generated PDF is empty');
-      }
-      
-      const url = window.URL.createObjectURL(blob);
-      setPdfUrl(url);
-      setShowTemplateModal(false);
-      
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      setError(error.message || 'Failed to generate PDF. Please try again.');
-      alert('Failed to generate PDF. Please try again. Error: ' + (error.message || 'Unknown error'));
+      setError(errorMessage);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const handleClosePdfViewer = () => {
+    setGeneratedPdfUrl(null);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Dynamic LaTeX Template Generator</h1>
+    <div className="app">
+      <header className="app-header">
+        <h1>Dynamic LaTeX Generator</h1>
       </header>
       
-      <main className="App-main">
-        <div className="editor-section">
-          <TiptapEditor onUpdate={handleEditorUpdate} />
-        </div>
+      <main className="app-main">
+        <Editor onPublish={handlePublish} />
         
-        {pdfUrl && (
-          <div className="preview-section">
-            <PDFViewer pdfUrl={pdfUrl} />
+        {isLoading && (
+          <div className="loading-overlay">
+            <div className="loading-spinner"></div>
+            <p>Generating your PDF...</p>
           </div>
         )}
         
@@ -119,18 +77,19 @@ function App() {
         )}
       </main>
       
-      <PublishButton 
-        onClick={handlePublishClick} 
-        disabled={!editorContent} 
+      <TemplateGallery 
+        showGallery={showTemplateGallery}
+        onTemplateSelect={handleTemplateSelect}
       />
       
-      {showTemplateModal && (
-        <TemplateListModal 
-          onClose={handleModalClose} 
-          onSelect={handleTemplateSelect}
-          loading={loading}
-        />
-      )}
+      <PDFViewer 
+        pdfUrl={generatedPdfUrl}
+        onClose={handleClosePdfViewer}
+      />
+      
+      <footer className="app-footer">
+        <p>© {new Date().getFullYear()} Dynamic LaTeX Generator</p>
+      </footer>
     </div>
   );
 }
